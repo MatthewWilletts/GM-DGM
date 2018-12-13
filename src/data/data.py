@@ -176,7 +176,7 @@ def make_dataset(learning_paradigm, dataset_name, x_test, y_test, x_train=None,
     """
 
 
-    if learning_paradigm is 'unsupervised' and number_of_classes_to_add is not None:
+    if learning_paradigm == 'unsupervised' and number_of_classes_to_add is not None:
         y_train = np.concatenate((y_train,
                                   np.zeros((y_train.shape[0],
                                             number_of_classes_to_add))),
@@ -186,37 +186,34 @@ def make_dataset(learning_paradigm, dataset_name, x_test, y_test, x_train=None,
                                            number_of_classes_to_add))),
                                 axis=1)
 
-    if learning_paradigm is 'unsupervised' or learning_paradigm is 'supervised':
+    if learning_paradigm == 'unsupervised' or learning_paradigm == 'supervised':
         Data = SSL_DATA(x_train, y_train, x_test=x_test, y_test=y_test,
-                        x_labeled=x_train, y_labeled=y_train,
+                        x_labelled=x_train, y_labelled=y_train,
                         dataset=dataset_name)
 
-    if learning_paradigm == 'semisupervised' or learning_paradigm is'semi-unsupervised':
+    if learning_paradigm == 'semisupervised' or learning_paradigm == 'semi-unsupervised':
         print('here')
         if do_split is True:
             x_labelled, y_labelled, x_unlabelled, y_unlabelled =\
                 create_semisupervised(x_train, y_train,
                                       num_classes=y_train.shape[1],
                                       num_labels=num_labelled, seed=seed)
-
         if number_of_classes_to_add is not None:
             y_unlabelled = np.concatenate((y_unlabelled,
                                           np.zeros((y_unlabelled.shape[0],
                                                     number_of_classes_to_add))),
                                           axis=1)
-
             y_labelled = np.concatenate((y_labelled,
                                         np.zeros((y_labelled.shape[0],
                                                   number_of_classes_to_add))),
                                         axis=1)
-
             y_test = np.concatenate((y_test,
                                     np.zeros((y_test.shape[0],
                                               number_of_classes_to_add))),
                                     axis=1)
 
-        Data = SSL_DATA(x_unlabelled, y_unlabelled, x_test=x_test, y_test=y_test, 
-                x_labeled=x_labelled, y_labeled=y_labelled, dataset=dataset_name)
+        Data = SSL_DATA(x_unlabelled, y_unlabelled, x_test=x_test, y_test=y_test,
+                x_labelled=x_labelled, y_labelled=y_labelled, dataset=dataset_name)
     return Data
 
 

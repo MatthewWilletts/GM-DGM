@@ -99,13 +99,13 @@ token = token.replace(',', '')
 
 #make output directory if doesnt exist
 cwd = os.getcwd()
-output_dir =  os.path.join(gi/output/results_masked', model_name ,dataset_name)
+output_dir = os.path.join(os.getcwd(), '../output', model_name, dataset_name)
 
 if os.path.isdir(output_dir) == False:
     os.makedirs(output_dir)
 
 
-x_train, y_train, x_test, y_test, binarize, x_dist, n_y, n_x, f_enc, f_dec  = load_dataset(dataset_name, preproc=True, bio_t=[i for i in range(40)])
+x_train, y_train, x_test, y_test, binarize, x_dist, n_y, n_x, f_enc, f_dec  = load_dataset(dataset_name, preproc=True)
 
 
 num_labelled = int(prop_labelled*x_train.shape[0])
@@ -131,19 +131,21 @@ n_y_f = float(n_y)
 # between the original, now unsupervised, classes and the extra, added, classes
 
 if classes_to_hide is not None:
-    prior_for_other_classes = (1.0 - (n_y_f-n_cth)/n_y_f)/(n_cth+n_cta)
+    prior_for_other_classes = (1.0 - (n_y_f - n_cth) / n_y_f) / (n_cth + n_cta)
     for hide_class in classes_to_hide:
         prior[hide_class] = prior_for_other_classes
-    if number_of_classes_to_add >0:
-        prior = np.concatenate((prior, np.ones(number_of_classes_to_add)*prior_for_other_classes))
+    if number_of_classes_to_add > 0:
+        prior = np.concatenate((prior, np.ones(number_of_classes_to_add) *
+                                prior_for_other_classes))
 
 
 n_y = n_y + number_of_classes_to_add
 
 
-Data = make_dataset(learning_paradigm, x_train, y_train, x_test, y_test, dataset_name, num_labelled=num_labelled, number_of_classes_to_add=number_of_classes_to_add)
-
-
+Data = make_dataset(learning_paradigm, dataset_name, x_test, y_test,
+                    x_train, y_train,
+                    num_labelled=num_labelled,
+                    number_of_classes_to_add=number_of_classes_to_add)
 
 l_bs, u_bs = 100, 100
 alpha = 0.1
@@ -171,9 +173,9 @@ for i in range(num_runs):
     model_token = token+'-'+str(i)+'---'
 
     if model_name == 'm2':
-        model = m2(n_x, n_y, n_z, n_hidden, x_dist=x_dist, batchnorm=batchnorm, mc_samples=mc_samps, l2_reg=l2_reg, learning_paradigm=learning_paradigm, name=model_token, ckpt = model_token)
+        model = m2(n_x, n_y, n_z, x_dist=x_dist, mc_samples=mc_samps, alpha=alpha, l2_reg=l2_reg, learning_paradigm=learning_paradigm, name=model_token, ckpt = model_token, output_dir=output_dir)
     if model_name == 'gm_dgm':
-        model = gm_dgm(n_x, n_y, n_z, n_hidden, x_dist=x_dist, batchnorm=batchnorm, alpha=alpha, mc_samples=mc_samps, l2_reg=l2_reg, learning_paradigm=learning_paradigm, name=model_token, ckpt = model_token, prior=prior[0:n_y]/float(sum(prior[0:n_y])), loss_ratio=loss_ratio, output_dir=output_dir)
+        model = gm_dgm(n_x, n_y, n_z, x_dist=x_dist, mc_samples=mc_samps, alpha=alpha, l2_reg=l2_reg, learning_paradigm=learning_paradigm, name=model_token, ckpt = model_token, prior=prior[0:n_y]/float(sum(prior[0:n_y])), output_dir=output_dir)
 
     if learning_paradigm == 'semisupervised' or 'semi-unsupervised':
         model.loss = model.compute_loss()
@@ -182,7 +184,7 @@ for i in range(num_runs):
     elif model.learning_paradigm == 'supervised':
         model.loss = model.compute_supervised_loss()
 
-    model.train(Data, n_epochs, l_bs, u_bs, lr, eval_samps=eval_samps, binarize=binarize, verbose=1)
+    model.train(Data, n_epochs, l_bs, u_bs, lr, eval_samps=eval_samps, binarize=binarize, verbose=verbose)
     results.append(model.curve_array)
     np.save(os.path.join(output_dir,'curve_'+token+'_'+str(i)+'.npy'), model.curve_array)
     y_pred_test = predict_new(Data.data['x_test'])[0]

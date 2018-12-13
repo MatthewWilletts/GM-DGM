@@ -154,40 +154,40 @@ class gm_dgm(model):
 
     def compute_loss(self):
         """ manipulate computed components and compute loss """
-        self.elbo_l = tf.reduce_mean(self.labeled_loss(self.x_l, self.y_l))
+        self.elbo_l = tf.reduce_mean(self.labelled_loss(self.x_l, self.y_l))
         self.qy_ll = tf.reduce_mean(self.qy_loss(self.x_l, self.y_l))
-        self.elbo_u = tf.reduce_mean(self.unlabeled_loss(self.x_u))
+        self.elbo_u = tf.reduce_mean(self.unlabelled_loss(self.x_u))
         weight_priors = self.l2_reg * self.weight_prior() / self.reg_term
         return -(self.elbo_l + self.elbo_u +
                  self.alpha * self.qy_ll + weight_priors)
 
     def compute_unsupervised_loss(self):
         """ manipulate computed components and compute unsup loss """
-        self.elbo_u = tf.reduce_mean(self.unlabeled_loss(self.x_u))
+        self.elbo_u = tf.reduce_mean(self.unlabelled_loss(self.x_u))
         weight_priors = self.l2_reg * self.weight_prior() / self.reg_term
         return -(self.elbo_u + weight_priors)
 
     def compute_supervised_loss(self):
         """ manipulate computed components and compute loss """
-        self.elbo_l = tf.reduce_mean(self.labeled_loss(self.x_l, self.y_l))
+        self.elbo_l = tf.reduce_mean(self.labelled_loss(self.x_l, self.y_l))
         self.qy_ll = tf.reduce_mean(self.qy_loss(self.x_l, self.y_l))
         weight_priors = self.l2_reg * self.weight_prior() / self.reg_term
         return -(self.elbo_l + self.alpha * self.qy_ll + weight_priors)
 
-    def labeled_loss(self, x, y):
+    def labelled_loss(self, x, y):
         z_m, z_lv, z = self.sample_z(x, y)
         z_m_p, z_lv_p = self.calc_z_prior(y)
         x_ = tf.tile(tf.expand_dims(x, 0), [self.mc_samples, 1, 1])
         y_ = tf.tile(tf.expand_dims(y, 0), [self.mc_samples, 1, 1])
         return self.lowerBound(x_, y_, z, z_m, z_lv, z_m_p, z_lv_p)
 
-    def unlabeled_loss(self, x):
+    def unlabelled_loss(self, x):
         qy_l = self.predict(x)
         x_r = tf.tile(x, [self.n_y, 1])
         y_u = tf.reshape(tf.tile(tf.eye(self.n_y), [1, tf.shape(x)[0]]),
                          [-1, self.n_y])
         n_u = tf.shape(x)[0]
-        lb_u = tf.transpose(tf.reshape(self.labeled_loss(x_r, y_u),
+        lb_u = tf.transpose(tf.reshape(self.labelled_loss(x_r, y_u),
                                        [self.n_y, n_u]))
         lb_u = tf.reduce_sum(qy_l * lb_u, axis=-1)
         qy_entropy = -tf.reduce_sum(qy_l * tf.log(qy_l + 1e-10), axis=-1)
@@ -247,15 +247,15 @@ class gm_dgm(model):
     def print_verbose1(self, epoch, fd, sess):
         total, elbo_l, elbo_u, qy_ll, weight_priors = \
             sess.run([self.compute_loss(), self.elbo_l, self.elbo_u,
-                      self.qy_ll, weight_priors], fd)
+                      self.qy_ll, self.l2_reg * self.weight_prior() / self.reg_term], fd)
         train_acc, test_acc = sess.run([self.train_acc, self.test_acc], fd)
-        print("Epoch: {}: Total: {:5.3f}, Labeled: {:5.3f}, Unlabeled: {:5.3f}, q_y_ll: {:5.3f}, weight_priors: {:5.3f}, Training: {:5.3f}, Testing: {:5.3f}".format(epoch, total, elbo_l, elbo_u, qy_ll, weight_priors, train_acc, test_acc))  
+        print("Epoch: {}: Total: {:5.3f}, labelled: {:5.3f}, Unlabelled: {:5.3f}, q_y_ll: {:5.3f}, weight_priors: {:5.3f}, Training: {:5.3f}, Testing: {:5.3f}".format(epoch, total, elbo_l, elbo_u, qy_ll, weight_priors, train_acc, test_acc))  
 
     def print_verbose2(self, epoch, fd, sess):
         total, elbo_l, elbo_u = sess.run([self.compute_loss(), self.elbo_l,
                                           self.elbo_u], fd)
         train_acc, test_acc = sess.run([self.train_acc, self.test_acc], fd)
-        print("Epoch: {}: Total: {:5.3f}, Labeled: {:5.3f}, Unlabeled: {:5.3f}, Training: {:5.3f}, Testing: {:5.3f}".format(epoch, total, elbo_l, elbo_u, train_acc, test_acc)) 
+        print("Epoch: {}: Total: {:5.3f}, labelled: {:5.3f}, Unlabelled: {:5.3f}, Training: {:5.3f}, Testing: {:5.3f}".format(epoch, total, elbo_l, elbo_u, train_acc, test_acc)) 
 
     def print_verbose3(self, epoch):
-        print("Epoch: {}: Total: {:5.3f}, Unlabeled: {:5.3f}, KL_y: {:5.3f}, TrainingAc: {:5.3f}, TestingAc: {:5.3f}, TrainingK: {:5.3f}, TestingK: {:5.3f}".format(epoch, sum(self.curve_array[epoch][1:3]), self.curve_array[epoch][2], self.curve_array[epoch][3], self.curve_array[epoch][0], self.curve_array[epoch][6], self.curve_array[epoch][12], self.curve_array[epoch][13]))
+        print("Epoch: {}: Total: {:5.3f}, Unlabelled: {:5.3f}, KL_y: {:5.3f}, TrainingAc: {:5.3f}, TestingAc: {:5.3f}, TrainingK: {:5.3f}, TestingK: {:5.3f}".format(epoch, sum(self.curve_array[epoch][1:3]), self.curve_array[epoch][2], self.curve_array[epoch][3], self.curve_array[epoch][0], self.curve_array[epoch][6], self.curve_array[epoch][12], self.curve_array[epoch][13]))

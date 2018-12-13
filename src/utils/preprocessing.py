@@ -39,8 +39,7 @@ def PCA_encdec(eigvec, eigval, x_center, x_sd, toFloat=False):
             _x = x[:, i:(i + n_batch)]
             if toFloat is True:
                 _x = _x / 256.
-            result[:, i:(i + n_batch)] = eigvec.T.dot((_x - x_center) / x_sd) /
-            np.sqrt(eigval)
+            result[:, i:(i + n_batch)] = eigvec.T.dot((_x - x_center) / x_sd) / np.sqrt(eigval)
         return result
 
     def f_dec(x, bounded01=True):

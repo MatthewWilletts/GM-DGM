@@ -12,8 +12,8 @@ y - np array: N rows, k columns (one-hot encoding)
 
 class SSL_DATA:
     """ Class for appropriate data structures """
-    def __init__(self, x, y, x_test=None, y_test=None, x_labeled=None,
-                 y_labeled=None, train_proportion=0.7, labeled_proportion=0.3,
+    def __init__(self, x, y, x_test=None, y_test=None, x_labelled=None,
+                 y_labelled=None, train_proportion=0.7, labelled_proportion=0.3,
                  dataset='', seed=None):
         self.INPUT_DIM = x.shape[1]
         self.NUM_CLASSES = y.shape[1]
@@ -35,30 +35,30 @@ class SSL_DATA:
             xtrain, ytrain, xtest, ytest = self._split_data(x, y)
         else:
             xtrain, ytrain, xtest, ytest = x, y, x_test, y_test
-        if x_labeled is None:
-            self.NUM_LABELED = int(np.round(self.TRAIN_SIZE * labeled_proportion))
-            self.NUM_UNLABELED = int(self.TRAIN_SIZE - self.NUM_LABELED)
-            x_labeled, y_labeled, x_unlabeled, y_unlabeled = \
+        if x_labelled is None:
+            self.NUM_LABELLED = int(np.round(self.TRAIN_SIZE * labelled_proportion))
+            self.NUM_UNLABELLED = int(self.TRAIN_SIZE - self.NUM_LABELLED)
+            x_labelled, y_labelled, x_unlabelled, y_unlabelled = \
                 self._create_semisupervised(xtrain, ytrain)
         else:
-            x_unlabeled, y_unlabeled = xtrain, ytrain
+            x_unlabelled, y_unlabelled = xtrain, ytrain
 
-        self.NUM_LABELED = x_labeled.shape[0]
-        self.NUM_UNLABELED = x_unlabeled.shape[0]
+        self.NUM_LABELLED = x_labelled.shape[0]
+        self.NUM_UNLABELLED = x_unlabelled.shape[0]
 
         # create appropriate data dictionaries
         self.data = {}
-        self.data['x_train'] = np.concatenate((x_labeled, x_unlabeled))
-        self.data['y_train'] = np.concatenate((y_labeled, y_unlabeled))
+        self.data['x_train'] = np.concatenate((x_labelled, x_unlabelled))
+        self.data['y_train'] = np.concatenate((y_labelled, y_unlabelled))
         self.TRAIN_SIZE = self.data['x_train'].shape[0]
-        self.data['x_u'], self.data['y_u'] = x_unlabeled, y_unlabeled
-        self.data['x_l'], self.data['y_l'] = x_labeled, y_labeled
+        self.data['x_u'], self.data['y_u'] = x_unlabelled, y_unlabelled
+        self.data['x_l'], self.data['y_l'] = x_labelled, y_labelled
         self.data['x_test'], self.data['y_test'] = xtest, ytest
 
         # counters and indices for minibatching
-        self._start_labeled, self._start_unlabeled = 0, 0
-        self._epochs_labeled = 0
-        self._epochs_unlabeled = 0
+        self._start_labelled, self._start_unlabelled = 0, 0
+        self._epochs_labelled = 0
+        self._epochs_unlabelled = 0
         self._start_regular = 0
         self._epochs_regular = 0
 
@@ -71,10 +71,10 @@ class SSL_DATA:
         return (x[train_idx, :], y[train_idx, :], x[test_idx, :], y[test_idx, :])
 
     def _create_semisupervised(self, x, y):
-        """ split training data into labeled and unlabeled """
+        """ split training data into labelled and unlabelled """
         indices = range(self.TRAIN_SIZE)
         np.random.shuffle(indices)
-        l_idx, u_idx = indices[:self.NUM_LABELED], indices[self.NUM_LABELED:]
+        l_idx, u_idx = indices[:self.NUM_LABELLED], indices[self.NUM_LABELLED:]
         return (x[l_idx, :], y[l_idx, :], x[u_idx, :], y[u_idx, :])
 
     def create_semisupervised(self, x_train, y_train, num_classes,
@@ -102,87 +102,87 @@ class SSL_DATA:
         return x_labelled, y_labelled, x_unlabelled, y_unlabelled
 
     def recreate_semisupervised(self, seed):
-        self.data['x_l'], self.data['y_l'], self.data['x_u'], self.data['y_u'] =
-        \ self.create_semisupervised(self.data['x_train'],
-                                     self.data['y_train'],
-                                     num_classes=self.NUM_CLASSES,
-                                     num_labels=list(np.sum(self.data['y_l'],
-                                                            axis=0, dtype=int)),
-                                     seed=seed)
+        self.data['x_l'], self.data['y_l'], self.data['x_u'], self.data['y_u'] =\
+            self.create_semisupervised(self.data['x_train'],
+                                       self.data['y_train'],
+                                       num_classes=self.NUM_CLASSES,
+                                       num_labels=list(np.sum(self.data['y_l'],
+                                                       axis=0, dtype=int)),
+                                       seed=seed)
 
-    def next_batch(self, LABELED_BATCHSIZE, UNLABELED_BATCHSIZE):
-        x_l_batch, y_l_batch = self.next_batch_labeled(LABELED_BATCHSIZE)
-        x_u_batch, y_u_batch = self.next_batch_unlabeled(UNLABELED_BATCHSIZE)
+    def next_batch(self, labelled_BATCHSIZE, UNlabelled_BATCHSIZE):
+        x_l_batch, y_l_batch = self.next_batch_labelled(labelled_BATCHSIZE)
+        x_u_batch, y_u_batch = self.next_batch_unlabelled(UNlabelled_BATCHSIZE)
         return (x_l_batch, y_l_batch, x_u_batch, y_u_batch)
 
-    def next_batch_labeled(self, batch_size, shuffle=True):
+    def next_batch_labelled(self, batch_size, shuffle=True):
         """Return the next `batch_size` examples from this data set."""
-        start = self._start_labeled
+        start = self._start_labelled
         # Shuffle for the first epoch
-        if self._epochs_labeled == 0 and start == 0 and shuffle:
-            perm0 = np.arange(self.NUM_LABELED)
+        if self._epochs_labelled == 0 and start == 0 and shuffle:
+            perm0 = np.arange(self.NUM_LABELLED)
             np.random.shuffle(perm0)
             self.data['x_l'] = self.data['x_l'][perm0, :]
             self.data['y_l'] = self.data['y_l'][perm0, :]
             # Go to the next epoch
-        if start + batch_size > self.NUM_LABELED:
+        if start + batch_size > self.NUM_LABELLED:
             # Finished epoch
-            self._epochs_labeled += 1
+            self._epochs_labelled += 1
             # Get the rest examples in this epoch
-            rest_num_examples = self.NUM_LABELED - start
-            inputs_rest_part = self.data['x_l'][start:self.NUM_LABELED]
-            labels_rest_part = self.data['y_l'][start:self.NUM_LABELED]
+            rest_num_examples = self.NUM_LABELLED - start
+            inputs_rest_part = self.data['x_l'][start:self.NUM_LABELLED]
+            labels_rest_part = self.data['y_l'][start:self.NUM_LABELLED]
             # Shuffle the data
             if shuffle:
-                perm = np.arange(self.NUM_LABELED)
+                perm = np.arange(self.NUM_LABELLED)
                 np.random.shuffle(perm)
                 self.data['x_l'] = self.data['x_l'][perm]
                 self.data['y_l'] = self.data['y_l'][perm]
             # Start next epoch
             start = 0
-            self._start_labeled = batch_size - rest_num_examples
-            end = self._start_labeled
+            self._start_labelled = batch_size - rest_num_examples
+            end = self._start_labelled
             inputs_new_part = self.data['x_l'][start:end]
             labels_new_part = self.data['y_l'][start:end]
             return np.concatenate((inputs_rest_part, inputs_new_part), axis=0), np.concatenate((labels_rest_part, labels_new_part), axis=0)
         else:
-            self._start_labeled += batch_size
-            end = self._start_labeled
+            self._start_labelled += batch_size
+            end = self._start_labelled
             return self.data['x_l'][start:end], self.data['y_l'][start:end]
 
-    def next_batch_unlabeled(self, batch_size, shuffle=True):
+    def next_batch_unlabelled(self, batch_size, shuffle=True):
         """Return the next `batch_size` examples from this data set."""
-        start = self._start_unlabeled
+        start = self._start_unlabelled
         # Shuffle for the first epoch
-        if self._epochs_unlabeled == 0 and start == 0 and shuffle:
-            perm0 = np.arange(self.NUM_UNLABELED)
+        if self._epochs_unlabelled == 0 and start == 0 and shuffle:
+            perm0 = np.arange(self.NUM_UNLABELLED)
             np.random.shuffle(perm0)
             self.data['x_u'] = self.data['x_u'][perm0, :]
             self.data['y_u'] = self.data['y_u'][perm0, :]
         # Go to the next epoch
-        if start + batch_size > self.NUM_UNLABELED:
+        if start + batch_size > self.NUM_UNLABELLED:
             # Finished epoch
-            self._epochs_unlabeled += 1
+            self._epochs_unlabelled += 1
             # Get the rest examples in this epoch
-            rest_num_examples = self.NUM_UNLABELED - start
-            inputs_rest_part = self.data['x_u'][start:self.NUM_UNLABELED, :]
-            labels_rest_part = self.data['y_u'][start:self.NUM_UNLABELED, :]
+            rest_num_examples = self.NUM_UNLABELLED - start
+            inputs_rest_part = self.data['x_u'][start:self.NUM_UNLABELLED, :]
+            labels_rest_part = self.data['y_u'][start:self.NUM_UNLABELLED, :]
             # Shuffle the data
             if shuffle:
-                perm = np.arange(self.NUM_UNLABELED)
+                perm = np.arange(self.NUM_UNLABELLED)
                 np.random.shuffle(perm)
                 self.data['x_u'] = self.data['x_u'][perm]
                 self.data['y_u'] = self.data['y_u'][perm]
             # Start next epoch
             start = 0
-            self._start_unlabeled = batch_size - rest_num_examples
-            end = self._start_unlabeled
+            self._start_unlabelled = batch_size - rest_num_examples
+            end = self._start_unlabelled
             inputs_new_part = self.data['x_u'][start:end, :]
             labels_new_part = self.data['y_u'][start:end, :]
             return np.concatenate((inputs_rest_part, inputs_new_part), axis=0) , np.concatenate((labels_rest_part, labels_new_part), axis=0)
         else:
-            self._start_unlabeled += batch_size
-            end = self._start_unlabeled
+            self._start_unlabelled += batch_size
+            end = self._start_unlabelled
             return self.data['x_u'][start:end, :], self.data['y_u'][start:end, :]
 
     def next_batch_regular(self, batch_size, shuffle=True):
@@ -246,13 +246,13 @@ class SSL_DATA:
         self.data['y_l'] = np.vstack((self.data['y_l'], self.data['y_u'][idx]))
         self.data['x_u'] = np.delete(self.data['x_u'], [idx], axis=0)
         self.data['y_u'] = np.delete(self.data['y_u'], [idx], axis=0)
-        self.NUM_LABELED = self.data['x_l'].shape[0]
-        self.NUM_UNLABELED = self.data['x_u'].shape[0]
+        self.NUM_LABELLED = self.data['x_l'].shape[0]
+        self.NUM_UNLABELLED = self.data['x_u'].shape[0]
 
     def reset_counters(self):
         """ counters and indices for minibatching """
-        self._start_labeled, self._start_unlabeled = 0, 0
-        self._epochs_labeled = 0
-        self._epochs_unlabeled = 0
+        self._start_labelled, self._start_unlabelled = 0, 0
+        self._epochs_labelled = 0
+        self._epochs_unlabelled = 0
         self._start_regular = 0
         self._epochs_regular = 0

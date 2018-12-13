@@ -4,7 +4,7 @@ from __future__ import print_function
 
 import os
 import numpy as np
-import utils.dgm_k as dgm
+import utils.dgm as dgm
 from scipy.stats import mode
 from sklearn.metrics import cohen_kappa_score, confusion_matrix
 import tensorflow as tf
@@ -23,16 +23,13 @@ class model(object):
         self.n_x, self.n_y = n_x, n_y    # data characteristics
         self.n_y_tf = tf.constant(float(self.n_y))
         self.n_z = n_z                   # number of labelled dimensions
-        self.n_hid = n_hidden            # network architectures
         self.x_dist = x_dist             # likelihood for inputs
-        self.bn = batchnorm              # use batch normalization
         self.mc_samples = mc_samples     # MC samples for estimation
         self.mc_samples_tf = tf.constant(float(self.mc_samples))
         self.alpha = alpha               # additional penalty weight term
         self.l2_reg = l2_reg             # weight regularization scaling const.
         self.name = name              # model name
         self.ckpt = ckpt                 # preallocated checkpoint dir
-        self.temp = temp
         self.intermediate_dim = 500
         self.n, self.n_train = 1, 1       # initialize data size
         self.output_dir = output_dir
@@ -52,7 +49,6 @@ class model(object):
         """ Method for training the models """
         self.data_init(Data, eval_samps, l_bs, u_bs)
         self.lr = self.set_learning_rate(lr)
-        self.schedule = self.set_schedule(temp_epochs, start_temp, n_epochs)
         # define optimizer
         optimizer = tf.train.AdamOptimizer(learning_rate=self.lr)
         gvs = optimizer.compute_gradients(self.loss)
@@ -102,7 +98,6 @@ class model(object):
 
                 fd = self.training_fd(x_labelled, labels, x_unlabelled)
                 _, loss_batch = sess.run([self.optimizer, self.loss], fd)
-                self.anneal_params()
 
                 if Data._epochs_unlabelled > epoch:
                     self.curve_array[epoch + 1] = \
@@ -187,8 +182,8 @@ class model(object):
 
         output_array[1:5] = np.array(sess_run_outputs[1:])
 
-        output_array[5] = output_array[1] + output_array[2] +
-                            self.alpha_np * output_array[3] + output_array[4]
+        output_array[5] = output_array[1] + output_array[2] + \
+            self.alpha_np * output_array[3] + output_array[4]
 
         output_array[12] = cohen_kappa_score(self.compute_pred(
                                              sess_run_outputs[0],
@@ -210,8 +205,8 @@ class model(object):
 
         output_array[7:11] = np.array(sess_run_outputs[1:])
 
-        output_array[11] = output_array[7] + output_array[8] +
-        self.alpha_np * output_array[8] + output_array[10]
+        output_array[11] = output_array[7] + output_array[8] + \
+            self.alpha_np * output_array[8] + output_array[10]
 
         output_array[13] = cohen_kappa_score(self.compute_pred(
                                              sess_run_outputs[0],
@@ -314,8 +309,8 @@ class model(object):
         else:
             self.eval_samps_train = eval_samps
             self.eval_samps_test = eval_samps
-        self.n_l = data.NUM_LABELED             # no. of labelled instances
-        self.n_u = data.NUM_UNLABELED           # no. of unlabelled instances
+        self.n_l = data.NUM_LABELLED             # no. of labelled instances
+        self.n_u = data.NUM_UNLABELLED           # no. of unlabelled instances
         self.data_name = data.NAME              # dataset being used
         self._allocate_directory()              # logging directory
 
@@ -364,8 +359,8 @@ class model(object):
         return acc
 
     def compute_acc(self, y, y_true, learning_paradigm):
-        if learning_paradigm is 'unsupervised' \
-           or learning_paradigm is 'un-semisupervised':
+        if learning_paradigm == 'unsupervised' \
+           or learning_paradigm == 'semi-unsupervised':
             logits = y
             cat_pred = logits.argmax(1)
             real_pred = np.zeros_like(cat_pred)
@@ -380,7 +375,7 @@ class model(object):
             return np.mean(y.argmax(1) == y_true.argmax(1))
 
     def training_fd(self, x_l, y_l, x_u):
-        if self.learning_paradigm == 'semisupervised' or self.learning_paradigm == 'un-semisupervised':
+        if self.learning_paradigm == 'semisupervised' or self.learning_paradigm == 'semi-unsupervised':
             return {self.x_l: x_l, self.y_l: y_l, self.x_u: x_u, self.x: x_l, self.y: y_l, self.reg_term:self.n_train, K.learning_phase(): 1}
         if self.learning_paradigm == 'supervised':
             return {self.x_l: x_l, self.y_l: y_l, self.x: x_l, self.y: y_l, self.reg_term:self.n_train, K.learning_phase(): 1}
@@ -400,7 +395,7 @@ class model(object):
             self.LOGDIR = './graphs/' + self.name + '-' + str(self.n_z) + '/'
             self.ckpt_dir = './ckpt/' + self.name + '-' + str(self.n_z) + '/'
         else:
-            self.LOGDIR = 'graphs/' + self.ckpt + '/'
+            self.LOGDIR = './graphs/' + self.ckpt + '/'
             self.ckpt_dir = './ckpt/' + self.ckpt + '/'
         if not os.path.isdir(self.ckpt_dir):
             os.mkdir(self.ckpt_dir)
